@@ -1,0 +1,33 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Landing Flow Low Cost Probe Result",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["probeA", "probeB", "passed"],
+  "properties": {
+    "passed": { "type": "boolean" },
+    "probeA": { "$ref": "#/$defs/probe" },
+    "probeB": { "$ref": "#/$defs/probe" }
+  },
+  "$defs": {
+    "probe": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["kind", "expectedProvider", "expectedModel", "actualProvider", "actualModel", "stopReason", "result", "ledgerPath", "verified"],
+      "properties": {
+        "kind": { "enum": ["research", "analysis"] },
+        "expectedProvider": { "enum": ["a", "f"] },
+        "expectedModel": { "const": "deepseek-v4.1-flash" },
+        "actualProvider": { "type": ["string", "null"] },
+        "actualModel": { "type": ["string", "null"] },
+        "childSessionId": { "type": ["string", "null"] },
+        "stopReason": { "type": ["string", "null"] },
+        "result": { "type": "string" },
+        "ledgerPath": { "type": ["string", "null"] },
+        "inputTokens": { "type": ["integer", "null"] },
+        "outputTokens": { "type": ["integer", "null"] },
+        "verified": { "type": "boolean" }
+      }
+    }
+  }
+}
