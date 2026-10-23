@@ -2177,6 +2177,12 @@ async function writeDelegateRun(cwd, record) {
 }
 function delegateTool(ctx, config) {
   const routes = delegateRoutes(config);
+  const budget = {
+    maxTasks: Number.isSafeInteger(config?.delegateBudget?.maxTasks) && config.delegateBudget.maxTasks > 0 ? config.delegateBudget.maxTasks : 6,
+    maxTokens: Number.isSafeInteger(config?.delegateBudget?.maxTokens) && config.delegateBudget.maxTokens > 0 ? config.delegateBudget.maxTokens : 131072,
+  };
+  let startedTasks = 0;
+  let reservedTokens = 0;
   return {
     name: 'd_delegate',
     description: '落地流受控只读委派：research、analysis、review。按配置选择低成本 Provider/Model，禁止写正式项目、递归委派和 GPT-6A。',
@@ -2209,6 +2215,10 @@ function delegateTool(ctx, config) {
       const cwd = text(args.cwd) ?? parent.session?.header?.cwd ?? '';
       const requested = Number(args.max_tokens);
       const maxTokens = Number.isSafeInteger(requested) && requested > 0 ? Math.min(requested, route.maxTokens) : route.maxTokens;
+      if (startedTasks >= budget.maxTasks) throw new Error(`d_delegate 已达到本轮任务上限 ${budget.maxTasks}`);
+      if (reservedTokens + maxTokens > budget.maxTokens) throw new Error(`d_delegate 预留输出上限会超过本轮额度 ${budget.maxTokens} tokens`);
+      startedTasks += 1;
+      reservedTokens += maxTokens;
       const taskId = `delegate-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
       const activation = await ctx.subagents.startActivation({
         provider: 'spawn', label: `落地流 ${kind} ${taskId}`, delivery: 'caller', signal: exec.signal,
