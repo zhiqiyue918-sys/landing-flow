@@ -138,6 +138,7 @@ await check('d_delegate: blocks a second task before activation when the budget 
   await tool.execute({ kind: 'research', task: '一次任务' }, exec);
   await assert.rejects(() => tool.execute({ kind: 'research', task: '第二次任务' }, exec), /任务上限|额度/);
   assert.equal(calls.length, 1, 'the second request is blocked before startActivation');
+  assert.equal(calls[0].signal, exec.signal, 'caller cancellation signal reaches activation');
   rmSync(budgetCwd, { recursive: true, force: true });
 });
 
