@@ -105,12 +105,12 @@ await check('toView: null state renders nothing; a view carries only execution f
 });
 
 // -------------------------------------------------- apply(): prompt+projection+tool
-const registered = {};
+const registered = { tools: [] };
 const stubCtx = {
   systemPrompt: { section: (section) => { registered.section = section; return () => {}; } },
   sessionProjections: { register: (definition) => { registered.projection = definition; return () => {}; } },
   tools: {
-    register: (tool) => { registered.tool = tool; return () => {}; },
+    register: (tool) => { registered.tool = tool; registered.tools.push(tool); return () => {}; },
     guard: (guard) => { registered.guard = guard; return () => {}; },
   },
 };
@@ -122,6 +122,24 @@ await check('apply({inert:true}) registers nothing (the top-level client-only ro
 });
 
 apply(stubCtx);
+
+await check('d_delegate: blocks a second task before activation when the budget is exhausted', async () => {
+  const calls = [];
+  const captured = [];
+  apply({
+    systemPrompt: { section: () => () => {} },
+    sessionProjections: { register: () => () => {} },
+    tools: { register: (tool) => { captured.push(tool); return () => {}; }, guard: () => () => {} },
+    subagents: { startActivation: async (spec) => { calls.push(spec); return { childId: 'c1', result: Promise.resolve({ output: [{ type: 'text', text: 'ok' }], stopReason: 'completed' }), dispose: async () => {} }; } },
+  }, { delegateRoutes: { research: { provider: 'a', model: 'cheap', maxTokens: 1024 } }, delegateBudget: { maxTasks: 1, maxTokens: 1024 } });
+  const tool = captured.find((entry) => entry.name === 'd_delegate');
+  const budgetCwd = mkdtempSync(join(process.cwd(), '.d-budget-test-'));
+  const exec = { agent: { id: 'parent', session: { header: { cwd: budgetCwd } } }, signal: new AbortController().signal };
+  await tool.execute({ kind: 'research', task: '一次任务' }, exec);
+  await assert.rejects(() => tool.execute({ kind: 'research', task: '第二次任务' }, exec), /任务上限|额度/);
+  assert.equal(calls.length, 1, 'the second request is blocked before startActivation');
+  rmSync(budgetCwd, { recursive: true, force: true });
+});
 
 await check('apply: registers the mode charter as a non-empty ordered prompt section', () => {
   assert.equal(registered.section.name, 'deep-construction');
