@@ -149,8 +149,9 @@ const sampleView = {
   currentStep: 'Y4',
   changes: [{ id: 'Y4-B1', kind: 'B', title: '补回暂停入口', classification: '复查' }],
   design: { status: '已完成', notes: '单文件结构' },
-  gameplayReview: { playtest_path: '真实入口', replay_hook: '有明确重玩理由' },
-  visualReview: { runtime_screenshot: 'artifacts/runtime.png', retest_result: '复测通过' },
+  gameApproval: { status: '用户明确同意施工', proposal_name: '潮汐拾荒者', user_evidence: '我选这个方案，就按这个方案开工' },
+  gameplayReview: { playtest_path: '真实玩家路径', replay_hook: '第二次有新选择' },
+  visualReview: { runtime_screenshot: 'artifacts/game.png', retest_result: '同入口复测通过' },
   decisions: [{ decision_id: 'D-001', choice: 'Phaser', reason: '2D 成熟底座', date: '2026-10-07' }],
   verification: [{ what: '关卡可玩', result: '1/1 pass' }],
   repair: [{ id: 'Y4-X1', what: '事件重复绑定', tests: '12 → 12', progress: 'INFO_GAIN' }],
@@ -224,6 +225,11 @@ await check('expanded body: renders the experience contract, benchmarks, gaps, i
       meaning: '第一次会话结束已解锁第二层资源',
       structure: '内容侧＝关卡；交互侧＝单屏 + 收起式面板',
       time_logic: '读系统日期做离线结算',
+      feeling: '唯美 → 低饱和远景 + 空气透视，参考 Alto 的分层剪影',
+      pitches: [
+        { name: '退潮后的滩涂拾荒者', pitch: '等潮水退去后捡拾；常驻潮位与天色' },
+        { name: '候鸟迁徙的领航员', pitch: '按气流调整航向；常驻风向与鸟群' },
+      ],
     },
     experience: {
       first_10s: '按 ←/→ 移动，出现拖尾',
@@ -240,6 +246,7 @@ await check('expanded body: renders the experience contract, benchmarks, gaps, i
     requirements: {
       unknown: ['验收标准'], assumptions: ['假设浏览器形态'], counts: { unknown: 1, assumptions: 1, delegated: 0, deferred: 1 },
       intake: { status: '已回答', autonomy: '已授权' },
+      consent: { status: '未确认', basis: null },
     },
     acceptance: { status: '待用户确认', userPath: '双击 index.html', evidence: ['tests 10/10'], userOnly: ['你按下去是否觉得爽'] },
   };
@@ -248,13 +255,22 @@ await check('expanded body: renders the experience contract, benchmarks, gaps, i
   assert.match(texts, /section\.basis/, 'the zero-to-one design basis is visible');
   assert.match(texts, /basis\.time/);
   assert.match(texts, /读系统日期做离线结算/);
+  // V5: the feeling translation and the named pitches are the two things the
+  // questionnaire failure dropped, so both must be visible, not just stored.
+  assert.match(texts, /basis\.feeling/, 'the feeling→picture translation is visible');
+  assert.match(texts, /唯美 → 低饱和远景/);
+  assert.match(texts, /section\.pitches/, 'the named pitches are visible');
+  assert.match(texts, /退潮后的滩涂拾荒者/);
+  assert.match(texts, /候鸟迁徙的领航员/);
   assert.match(texts, /section\.experience/);
+  assert.match(texts, /游戏方案批准状态/);
+  assert.match(texts, /潮汐拾荒者/);
+  assert.match(texts, /游戏核心循环试玩证据/);
+  assert.match(texts, /第二次有新选择/);
+  assert.match(texts, /游戏视觉与 UI 实机复测/);
+  assert.match(texts, /artifacts\/game\.png/);
   assert.match(texts, /exp\.first10/);
   assert.match(texts, /按 ←\/→ 移动/);
-  assert.match(texts, /游戏核心循环试玩证据/);
-  assert.match(texts, /有明确重玩理由/);
-  assert.match(texts, /游戏视觉与 UI 审查/);
-  assert.match(texts, /artifacts\/runtime\.png/);
   assert.match(texts, /section\.benchmarks/);
   assert.match(texts, /某成熟增量游戏/);
   assert.match(texts, /section\.gaps/);
@@ -262,6 +278,7 @@ await check('expanded body: renders the experience contract, benchmarks, gaps, i
   assert.match(texts, /已授权自主/, 'and where the board came from');
   assert.match(texts, /纯几何 \+ 程序化配色/);
   assert.match(texts, /intake\.granted/, 'the one-shot intake state is visible');
+  assert.match(texts, /consent\.locked/, 'the construction lock is visible while consent is open');
   assert.match(texts, /acceptance\.userOnly/);
   assert.match(texts, /你按下去是否觉得爽/);
 });
@@ -289,6 +306,50 @@ await check('expanded body: renders plan, changes, failures, artifacts, gaps and
   assert.match(texts, /section\.acceptance/);
   assert.match(texts, /双击 index\.html/);
   assert.match(texts, /2026-10-07/, 'the decision date (§24) reaches the panel');
+});
+
+await check('pipeline: a host-game mod shows its host, version and loader (V5)', () => {
+  // The triple a mod's loadability rests on has to be on the panel, not just in
+  // state: "which version is this for" is the first thing a user asks.
+  const asMod = (platform) => {
+    useStatePlan = [true];
+    useStateCalls = 0;
+    const tree = View({
+      useProjection: () => ({ ...sampleView, platform: { ...sampleView.platform, ...platform } }),
+      t,
+    });
+    const texts = collect(tree).join(' | ');
+    // Read the red flag, not the prose: the row claims whether it is sourced.
+    const flagged = [];
+    const walk = (node) => {
+      if (node === null || typeof node !== 'object') return;
+      if (Array.isArray(node)) { for (const child of node) walk(child); return; }
+      if (!node.props) return;
+      if (typeof node.type === 'function') { walk(node.type(node.props)); return; }
+      if (node.props['data-unsourced'] === 'true') flagged.push(collect(node.props.children).join(''));
+      walk(node.props.children);
+    };
+    walk(tree);
+    return { texts, flagged };
+  };
+
+  const good = asMod({
+    kind: '宿主游戏 mod',
+    hostGame: 'Minecraft Java 版', hostVersion: '1.20.1', hostLoader: 'Forge 47.2.0',
+  });
+  assert.match(good.texts, /platform\.host/);
+  assert.match(good.texts, /Minecraft Java 版 \+ 1\.20\.1 \+ Forge 47\.2\.0/);
+  assert.ok(!good.flagged.some((line) => line.includes('platform.host')),
+    `a fully specified host must not be flagged: ${good.flagged.join(' / ')}`);
+
+  const bad = asMod({ kind: '宿主游戏 mod', hostGame: 'Minecraft Java 版' });
+  assert.match(bad.texts, /platform\.hostMissing/);
+  assert.ok(bad.flagged.some((line) => line.includes('platform.host')),
+    `a half-specified host must be flagged: ${bad.flagged.join(' / ')}`);
+
+  // A non-mod platform never shows the row at all.
+  const plain = asMod({ kind: '游戏引擎', hostGame: null, hostVersion: null, hostLoader: null });
+  assert.ok(!plain.texts.includes('platform.host'), 'no host row for a plain engine');
 });
 
 await check('pipeline: the Active Stage row is marked, others are not (§55)', () => {
@@ -337,6 +398,136 @@ await check('intervention buttons stay hidden when the composer is unreachable',
   assert.equal(buttons(tree).filter((button) => button.label.startsWith('action.')).length, 0);
 });
 
+// ------------------------------------------------------------------- V2 panel
+/** Every node carrying `data-unsourced="true"`, flattened to its text. */
+const flagged = (node, out = []) => {
+  if (node === null || node === undefined || typeof node !== 'object') return out;
+  if (Array.isArray(node)) { for (const child of node) flagged(child, out); return out; }
+  if (!node.props) return out;
+  if (typeof node.type === 'function') { flagged(node.type(node.props), out); return out; }
+  if (node.props['data-unsourced'] === 'true') out.push(collect(node.props.children).join(''));
+  flagged(node.props.children, out);
+  return out;
+};
+
+const v2View = {
+  ...sampleView,
+  surfaces: [
+    { area: '美术与视觉', level: '弱', form: '成套 CC0 像素包', source: '用户提供', material: 'Kenney 1-Bit Pack', origin: '开源素材', licence: 'CC0', artWeight: 'S' },
+    { area: '音频', level: '一般', form: 'ZzFX 合成', source: '自产', origin: '程序化', licence: 'MIT', artWeight: 'B' },
+  ],
+  assets: { imageApi: '未接', budgetNote: '单次 ≤ ¥20', licenceNote: '仅 CC0/MIT' },
+  platform: {
+    choice: '浏览器原生 Canvas 2D + Web Audio',
+    kind: '无框架自研',
+    licence: '自有',
+    cost: '¥0',
+    exportTargets: '单文件 HTML，file:// 双击即玩',
+    note: '自研：物理/渲染/音频/输入/存档',
+    alternatives: [
+      { name: 'Godot 4.4', whyNot: 'web 导出为 wasm+pck 多文件，file:// 下受限' },
+      { name: 'Phaser 3', whyNot: '会引入外部依赖，与零依赖单文件要求冲突' },
+    ],
+  },
+  kickoff: { status: '已回答', path: 'docs/开工文档.md', questionCount: '12', blockingCount: '0' },
+  reviewers: [
+    { officer: '初见官', status: '通过', isolation: '独立子代理', verdict: '通过；第一次想放弃：第 41 秒' },
+    { officer: '对抗官', status: '不通过', isolation: '独立子代理', overturned: '推翻 留存官 第 3 条' },
+  ],
+  autoAdvanced: [{ item: '音频方案', defaultUsed: 'ZzFX 合成', reason: '标黄项等待超 40 分钟无回应' }],
+  // V4: a real art direction — references it extracts from, a palette that actually
+  // shifts hue for depth (not just value), and a counted loop that changed things.
+  art: {
+    layers: 5,
+    light: '光源右上；角色加边缘光，山体受光面偏暖',
+    texture: '噪点 + 颗粒叠加，天空加径向渐变',
+    ui: '思源黑体子集；标题 42px / 正文 16px；文字加半透明底板保证对比度',
+    references: [
+      { name: 'Inside 第 3 章', source: 'https://example.com/inside', whatToSteal: '三层剪影，最远层最暗最冷；雾把层与层隔开' },
+      { name: '用户给的图', source: '用户提供', whatToSteal: '暖色阳光从右侧进入，受光面偏橙' },
+    ],
+    palette: [
+      { hex: '#2B3A55', role: '远景山体' },
+      { hex: '#3D5A80', role: '中景山体' },
+      { hex: '#EE6C4D', role: '近景受光面' },
+      { hex: '#F4A261', role: '阳光与角色高光' },
+    ],
+    viewRounds: [
+      { round: '1', lookedAt: 'tests/evidence/level1.png', gaps: '各层只有明度差，一片脏灰', changed: '按色板加色相偏移：远景偏冷、近景偏暖' },
+      { round: '2', lookedAt: 'tests/evidence/level1.png', gaps: '山体是纯平涂，没有材质', changed: '加噪点与颗粒叠加' },
+      { round: '3', lookedAt: 'tests/evidence/level3.png', gaps: '夜里角色读不出轮廓', changed: '角色加边缘光' },
+    ],
+  },
+  capabilities: '视觉（能不能自己看画面）：有',
+  capabilityDetail: { visual: { available: true, tools: ['vision_describe'] } },
+};
+
+await check('V2 panel: renders kickoff, assets, reviewers, auto-advance and capabilities', () => {
+  useStatePlan = [true];
+  useStateCalls = 0;
+  const tree = View({ useProjection: () => v2View, t });
+  const texts = collect(tree).join(' | ');
+  assert.match(texts, /section\.kickoff/);
+  assert.match(texts, /docs\/开工文档\.md/);
+  assert.match(texts, /kickoff\.questions 12/);
+  assert.match(texts, /section\.assets/);
+  assert.match(texts, /assets\.budget/);
+  // The platform decision and, crucially, what it rejected are on the wire.
+  assert.match(texts, /section\.platform/);
+  assert.match(texts, /浏览器原生 Canvas 2D \+ Web Audio/);
+  assert.match(texts, /✗ Godot 4\.4/);
+  assert.match(texts, /✗ Phaser 3/);
+  assert.match(texts, /wasm\+pck 多文件/);
+  assert.match(texts, /platform\.export 单文件 HTML/);
+  // V4: the art direction and the loop that produced it.
+  assert.match(texts, /section\.art/);
+  assert.match(texts, /art\.refs 2/);
+  assert.match(texts, /art\.palette 4/);
+  assert.match(texts, /art\.rounds 3/);
+  assert.match(texts, /◇ Inside 第 3 章/);
+  assert.match(texts, /最远层最暗最冷/);
+  assert.match(texts, /#2B3A55/);
+  assert.match(texts, /远景山体/);
+  assert.match(texts, /角色加边缘光/);
+  assert.match(texts, /section\.reviewers/);
+  assert.match(texts, /初见官/);
+  assert.match(texts, /推翻 留存官 第 3 条/);
+  assert.match(texts, /section\.autoAdvanced/);
+  assert.match(texts, /标黄项等待超 40 分钟无回应/);
+  assert.match(texts, /section\.capabilities/);
+  // The surfaces row now carries the V2 material/origin/licence/weight line.
+  assert.match(texts, /开源素材 \/ CC0 \/ 权重S/);
+  assert.match(texts, /Kenney 1-Bit Pack/);
+  // Nothing is flagged when the state is clean.
+  assert.deepEqual(flagged(tree), []);
+});
+
+await check('V2 panel: flags each rule violation the host would report', () => {
+  const dirty = {
+    ...v2View,
+    kickoff: { ...v2View.kickoff, blockingCount: '2' },
+    reviewers: [{ officer: '初见官', status: '通过', isolation: '同会话' }],
+    capabilityDetail: { visual: { available: false, tools: [] } },
+    // Self-building with nothing rejected is exactly the "一个人单打独斗" case.
+    platform: { ...v2View.platform, alternatives: [] },
+    // V4: art with no references and no loop is the "rendered once and called it done" case.
+    art: { ...v2View.art, references: [], viewRounds: [] },
+  };
+  useStatePlan = [true];
+  useStateCalls = 0;
+  const tree = View({ useProjection: () => dirty, t });
+  const texts = collect(tree).join(' | ');
+
+  // The blindness chip rides in the collapsed bar, so it is visible without opening.
+  assert.match(texts, /chip\.blind/);
+  const marked = flagged(tree).join(' | ');
+  assert.match(marked, /kickoff\.blocking 2/, 'a non-zero blocking count is loud');
+  assert.match(marked, /初见官/, 'a rubber-stamp review is loud');
+  assert.match(marked, /视觉（能不能自己看画面）：有/, 'the capability line is loud when blind');
+  assert.match(marked, /浏览器原生 Canvas 2D \+ Web Audio/, 'self-building without rejected candidates is loud');
+  assert.match(marked, /art\.refs 0/, 'art with no references is loud');
+});
+
 await check('empty state: every section renders its empty label, no fake percentages', () => {
   useStatePlan = [true];
   useStateCalls = 0;
@@ -350,6 +541,11 @@ await check('empty state: every section renders its empty label, no fake percent
   assert.match(texts, /empty\.changes/);
   assert.match(texts, /empty\.artifacts/);
   assert.match(texts, /empty\.acceptance/);
+  assert.match(texts, /empty\.kickoff/);
+  assert.match(texts, /empty\.reviewers/);
+  assert.match(texts, /empty\.assets/);
+  assert.match(texts, /empty\.art/);
+  assert.match(texts, /empty\.capabilities/);
   assert.doesNotMatch(texts, /%/, 'no percentage is ever rendered');
 });
 

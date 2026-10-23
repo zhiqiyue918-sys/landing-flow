@@ -1,65 +1,47 @@
 ---
 name: deep-construction-gameplay
-description: Use for every game or interactive playable project from discovery through acceptance — to design a concrete repeatable core loop, build a playable vertical slice, and review real play evidence rather than infer fun from source code or passing tests.
+description: Use for every game or playable interactive project from discovery through acceptance — design a concrete repeatable loop and review actual player-path evidence rather than infer fun from source code or passing tests.
 ---
 
 # Game Design and Playtest
 
-## Start with the player's repeated action
+## Define the loop before building
 
-Before implementation, state in plain language:
+Write the player's repeated loop as `decision -> action -> readable feedback -> consequence/reward -> next decision`. Name the repeating action, the decision that changes what happens, the immediate feedback, the short-term goal, and a concrete reason to play again. A theme, feature list, or movement demo is not a core loop.
 
-- The action the player repeats.
-- The decision that makes repetitions meaningfully different.
-- The immediate feedback and reward after each action.
-- The short-term goal and what changes after reaching it.
-- Why a player would choose to play again.
+If the loop has no meaningful choice, redesign it before building content around it. A nominal choice that changes only a label or color is not meaningful unless that change is the intended experience. State two player choices and their expected consequences.
 
-Turn this into a loop: `decision -> action -> readable feedback -> consequence/reward -> next decision`. A theme, setting, or feature list is not a loop. If the loop contains no meaningful decision, say so and redesign it before building content around it. Give concrete examples of at least two player choices and their consequences. A nominal choice that changes only text or color is not a meaningful branch unless that change is itself the intended experience.
+## Design for an actual session
 
-## Design for a real session
+Specify what a first-time player does in the first ten seconds, what meaningful feedback/reward arrives in the first minute, and what goal carries play through the first few minutes. Identify the state that must remain visible. Separate challenge, which asks the player to learn or decide, from friction, which hides controls, delays feedback, blocks a reasonable action, or makes failure opaque.
 
-Describe what a first-time player does in the first ten seconds, what feedback or reward arrives during the first minute, and what goal carries the player through the first few minutes. Use values, timings, and unlock conditions only when they help test the design; do not invent precision that has no basis. Identify the state the player needs at all times and keep the next useful action legible.
+For failure, name what the player learns and how play resumes. If the game intentionally has no failure, test exit/re-entry or another relevant recovery path instead. Use timings and numeric targets only when they can be observed; do not invent precision to make a design look rigorous.
 
-Separate challenge from friction. Challenge asks the player to learn, decide, or improve; friction hides controls, delays feedback, blocks a reasonable action, or makes failure opaque. For each failure condition, name the information the player learns and the fastest route back into play. If the design is intentionally relaxing or has no failure state, say so and test the corresponding idle/exit/re-entry path instead.
+## Build and play
 
-## Build order
+1. Build a small playable slice that exposes the real loop, not just a title screen or movement test.
+2. Include input, state changes, feedback, consequence/reward, and at least one meaningful variation in the same slice.
+3. Launch the actual user-facing entry point.
+4. Operate the game through the same keyboard, mouse, or touch path that players use.
+5. Observe at least three consecutive loops. Record action, decision, feedback, outcome, and where repetition or dead time appears.
+6. Compare two different choices and their outcomes. For intentionally linear play, document the tested change that creates mastery, escalation, or a different challenge.
+7. Exercise failure and restart where applicable; record the path and observed recovery.
+8. State one evidence-based reason to play again. If none exists, the loop is not ready for acceptance.
 
-1. Define a compact playable slice that exposes the real loop, not just movement, a title screen, or a feature showcase.
-2. Implement input, game state, feedback, consequence/reward, failure/recovery, and one meaningful variation together.
-3. Run the actual player entry point and operate it through the same input path a player uses.
-4. Observe at least three consecutive loop repetitions. Record duration, player action, decision, feedback, and outcome; point out repetition, dead time, and any point where the player does not know what happened.
-5. Compare two different player choices and their outcomes. If the design intentionally has no branching, identify the changing variable that creates mastery, escalation, or a different challenge.
-6. Test failure and restart where applicable. Record whether the failure teaches anything and how quickly play resumes.
-7. Identify one evidence-backed reason to play again. If none exists, the loop is not ready for product acceptance.
+Automated tests prove logic properties; they do not prove responsiveness, readability, fun, or replay value. Directly invoking internal functions is not a player-path test. The first playable build is a learning instrument, not automatically a deliverable.
 
-The first playable build is a learning instrument, not automatically a deliverable. After the first real session, compare observations against the intended loop. Fix the largest loop defect before adding content. Do not add levels, upgrades, particles, or feature lists as camouflage for a weak central action.
+## Required review evidence
 
-## Evidence format
+Record the exact launch command or entry path, controls used, a reproducible operation trace, observed outcomes, and screenshot/video evidence. Distinguish measurements from judgment. Save project-relative evidence paths and reference them in `d_state.gameplay_review`. If a reviewer cannot run or see the build, mark that part unverified.
 
-Record the launch command or exact entry path, controls used, a short operation trace, observed outcomes, screenshots or video frames, and timing estimates with their measurement method. Separate measured facts from judgment. A reviewer who cannot actually run or see the game must mark that part unverified. Save evidence under the project, use stable relative paths, and mention the paths in `d_state.gameplay_review`.
+A "no" on the core action, meaningful choice, readable feedback, loop development, or replay reason returns to DESIGN. Do not camouflage a weak loop by adding levels, particles, upgrades, or more text.
 
-For a keyboard game, exercise the real keyboard handler. For pointer/touch play, click or tap the visible target as a player would, not a hidden coordinate or internal function. If automation is used, record what it controls and add at least one observation through the actual user-facing path. Do not infer responsiveness from source code or unit tests.
+## d_state fields
 
-## Acceptance questions
+- `playtest_path`: actual user-facing launch path and player input method.
+- `loop_observation`: at least three real loop repetitions with action/decision/feedback/outcome.
+- `branch_evidence`: two choices and distinct outcomes, or observed alternative variation for a deliberately linear game.
+- `retry_observation`: real failure/restart path, or a reasoned statement that failure is not part of the design.
+- `replay_hook`: concrete observed reason to play again, or `未成立`.
 
-- Can a first-time player identify the immediate goal and primary action without explanation?
-- Does each important action produce prompt, legible feedback?
-- Does the player's choice affect the next state or outcome?
-- Does the loop change or deepen before it becomes repetitive?
-- Can the player understand failure and resume quickly?
-- Can the reviewer give a concrete reason to play again?
-
-A "no" on the core action, choice, feedback, or replay reason returns the task to DESIGN. A true observation of no reason to replay is a finding, not something to soften into "more content would help". Record the defect, return to the design decision that caused it, update the experience contract, and test the revised loop.
-
-## State and handoff
-
-Write concise evidence into `d_state.gameplay_review`:
-
-- `playtest_path`: exact entry point and actual player input path.
-- `loop_observation`: at least three repetitions, with action/decision/feedback/outcome and relevant timing.
-- `branch_evidence`: two choices and distinct outcomes, or the tested alternative variation for a deliberately linear design.
-- `retry_observation`: failure/restart path and observed recovery time, or why failure is not part of this game's design.
-- `replay_hook`: a specific observed reason to play again, or explicitly "未成立".
-
-Do not mark a field complete with planned tests, generated descriptions, or evidence that does not exist. If the evidence is missing, say what has not yet been observed. A good handoff lets another person reproduce the observation without trusting the implementer's summary.
+Planned tests, generated descriptions, and source inspection are not observed evidence.

@@ -22,11 +22,11 @@ description: Use whenever verification fails, a defect appears, an audit finds i
 
 **沉默不是验收通过**：如果体验验收项没有用户答复，状态停在 WAITING_USER_DECISION，不得写 COMPLETE、也不得开始"顺手再加点东西"。
 
-## 游戏体验缺陷的返修路由
+## 游戏体验缺陷路由
 
-- 核心动作重复、选择不影响结果、反馈不可读、玩家不知道目标或找不到重玩理由：加载 `deep-construction-gameplay`，回到 DESIGN 重做核心循环，再试玩验证。
-- HUD 遮挡、视觉层级不清、画面风格不统一、主操作不醒目：加载 `deep-construction-visual-review`，先从实际运行截图定位，再改并复测。
-- 不把「多加内容」「换一套颜色」「加粒子」当通用修复；修复必须对应一条可复现的体验缺陷，并用同一路径前后证据验证。
+- 核心动作无决策、选择不改变结果、反馈不可读、循环重复或没有重玩理由：加载 `deep-construction-reviewer-core-loop`，回到 DESIGN 重做循环，再从真实入口试玩。
+- HUD 遮挡、目标不清、主操作不醒目、视觉风格混杂：加载 `deep-construction-art` 与 `deep-construction-reviewer-usability`，用真实运行截图定位具体缺陷，修后同入口复测。
+- 不以“多加内容 / 换色 / 加粒子”掩盖根因；每项体验返修都要对应可复现问题，并给出改前改后证据。宿主的 `gameplay_review` / `visual_review` 记录用于 COMPLETE 硬门。
 
 ## 不以次数为停损条件
 

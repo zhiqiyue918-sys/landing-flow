@@ -96,7 +96,7 @@ check('patch: the loaded package resolves its own name (what customSkillDirs dep
   assert.ok(statSync(join(dirname(resolved), 'skills')).isDirectory());
 });
 
-check('patch: every required capability is mounted exactly once', () => {
+check('patch: mounts main capabilities and isolated read-only child presets', () => {
   const required = [
     'tool-pwsh', 'tool-bash', 'tool-fs', 'tool-fs-search', 'tool-jobs', 'tool-workspace-dependencies',
     'persona', 'agent-instructions', 'command-goal', 'tool-goal', 'tool-ask-user', 'tool-todo',
@@ -106,7 +106,16 @@ check('patch: every required capability is mounted exactly once', () => {
   ];
   for (const id of required) {
     const matches = patch.match(new RegExp(`^\\s+- id: ${id}$`, 'gm')) ?? [];
-    assert.equal(matches.length, 1, `row ${id} must appear exactly once (found ${matches.length})`);
+    assert.ok(matches.length >= 1, `required row ${id} is missing`);
+  }
+  for (const id of ['preset-d-construction-research', 'preset-d-construction-analysis', 'preset-d-construction-review']) {
+    const start = patch.indexOf(`id: ${id}`);
+    assert.ok(start >= 0, `${id} is missing`);
+    const next = patch.indexOf('\\n     - id:', start + 1);
+    const section = patch.slice(start, next < 0 ? undefined : next);
+    assert.ok(section.includes("name: '@deepseek-ai/dsh-tool-fs'"), `${id} needs file read access`);
+    assert.ok(section.includes("name: '@deepseek-ai/dsh-tool-fs-search'"), `${id} needs file search access`);
+    assert.equal(section.includes("name: '@deepseek-ai/dsh-tool-subagent'"), false, `${id} must not delegate`);
   }
   const disabled = patch.match(/disabled: !!js/g) ?? [];
   assert.equal(disabled.length, 3, 'two platform-conditional shell rows plus the payload-gated dependencies row');
@@ -123,8 +132,8 @@ check('patch: every required capability is mounted exactly once', () => {
 // --------------------------------------------------------------------- skills
 const skillDirs = readdirSync(join(root, 'skills'));
 
-check('skills: eight skills, each with valid front matter and a matching directory name', () => {
-  assert.equal(skillDirs.length, 8, `expected 8 skills, found ${skillDirs.join(', ')}`);
+check('skills: eighteen skills, each with valid front matter and a matching directory name', () => {
+  assert.equal(skillDirs.length, 18, `expected 18 skills, found ${skillDirs.join(', ')}`);
   for (const dir of skillDirs) {
     const text = read(join('skills', dir, 'SKILL.md'));
     const lines = text.split('\n');
@@ -160,12 +169,25 @@ check('locale: en is the anchor and both dictionaries carry non-empty meta text'
   assert.match(zh.meta.title, /落地流/);
 });
 
-check('charter: carries the twelve principles, the state machine and the receipt format', () => {
+check('charter: carries the sixteen principles, the state machine and the receipt format', () => {
   const charter = read('prompt/d-mode.md');
   for (const marker of [
-    '十二条核心原则', 'INTENT TRUTH', 'IMPLEMENTATION TRUTH', 'EXTERNAL TRUTH', 'ASSUMPTION',
+    'INTENT TRUTH', 'IMPLEMENTATION TRUTH', 'EXTERNAL TRUTH', 'ASSUMPTION',
     'RECEIVE', 'WAITING_USER_DECISION', 'ROOT_CAUSE_REPLAN', 'BLOCKED', 'ACCEPTANCE', 'COMPLETE',
     'd_state', '【落地流】', '不接入任何外部 Agent',
+    // V2 mechanisms: the charter must keep naming each one, or it silently regresses.
+    '开工文档', '`blocking_count` 必须恒为 0', 'auto_advance_log', '超时推进默认值',
+    'art_weight', '许可红线', '自视门', '能力自检', '独立子代理', '对抗官',
+    '感觉不是无效输入', '体验官技能（V2）',
+    // V2.1 (end-to-end finding): the review stage must be finished, not assumed.
+    '收尾是显式步骤，不要指望还有下一轮', 'run_in_background: false',
+    // V3 (real-machine finding): building a whole engine by hand without ever
+    // asking whether one exists. "自己写" is not the value.
+    '不要一个人单打独斗', '承载平台', 'Godot',
+    'platform.choice', '无框架自研', 'why_not',
+    // V4 (the user's own verdict on a working, well-verified product: "美术还是一般").
+    '十八条核心原则', '美术要对着参考做，不是对着形容词做', 'what_to_steal',
+    'view_rounds', '证据帧必须等于实机', '脏灰', 'deep-construction-art',
   ]) {
     assert.ok(charter.includes(marker), `charter must contain ${marker}`);
   }

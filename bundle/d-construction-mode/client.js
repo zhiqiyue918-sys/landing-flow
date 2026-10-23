@@ -45,6 +45,10 @@ window.__ModuleLoader__.load({
       '.dcAction:focus-visible{outline:none;box-shadow:0 0 0 var(--dsw-focus-ring-width) var(--dsw-focus-ring-color)}',
       '.dcActionHint{margin-top:4px;font-size:11px;color:var(--dsw-alias-label-tertiary)}',
       '.dcStageName[data-state="void"]{color:var(--dsw-alias-label-tertiary);text-decoration:line-through}',
+      // V2: a row the host flagged as breaking one of the mode's own rules
+      // (a red decision item, a rubber-stamp review, a licence red line, an
+      // S-weight art surface with no user-provided source) has to be loud.
+      '.dcText[data-unsourced="true"],.dcText[data-unsourced="true"] .dcMono{color:var(--dsw-alias-state-error-primary)}',
       '.dcStageSummary{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--dsw-alias-label-tertiary);font-size:12px}',
       '.dcEmpty{color:var(--dsw-alias-label-tertiary);font-size:12px}',
       '.dcMono{font-family:var(--dsw-font-family-mono,ui-monospace,SFMono-Regular,Menlo,monospace);font-size:11px;color:var(--dsw-alias-label-tertiary)}',
@@ -63,10 +67,13 @@ window.__ModuleLoader__.load({
         case '等待用户':
           return 'wait';
         case '需修复':
+        case '退回':
           return 'repair';
         case '阻塞':
+        case '不通过':
           return 'blocked';
         case '作废':
+        case '不适用':
           return 'void';
         default:
           return 'idle';
@@ -129,9 +136,25 @@ window.__ModuleLoader__.load({
       const requirements = view.requirements || { unknown: [], assumptions: [], counts: {} };
       const acceptance = view.acceptance || {};
       const experience = view.experience || {};
+      const gameplayReview = view.gameplayReview || {};
+      const visualReview = view.visualReview || {};
       const benchmarks = Array.isArray(view.benchmarks) ? view.benchmarks : [];
       const gaps = Array.isArray(view.surfaces) ? view.surfaces : [];
       const basis = view.basis || {};
+      const gameApproval = view.gameApproval || {};
+      const pitches = Array.isArray(basis.pitches) ? basis.pitches : [];
+      const kickoff = view.kickoff || {};
+      const reviewers = Array.isArray(view.reviewers) ? view.reviewers : [];
+      const assets = view.assets || {};
+      const platform = view.platform || {};
+      const platformAlternatives = Array.isArray(platform.alternatives) ? platform.alternatives : [];
+      const art = view.art || {};
+      const artReferences = Array.isArray(art.references) ? art.references : [];
+      const artPalette = Array.isArray(art.palette) ? art.palette : [];
+      const artRounds = Array.isArray(art.viewRounds) ? art.viewRounds : [];
+      const autoAdvanced = Array.isArray(view.autoAdvanced) ? view.autoAdvanced : [];
+      const capabilitiesLine = typeof view.capabilities === 'string' ? view.capabilities : '';
+      const capabilityDetail = view.capabilityDetail || null;
       const doneModules = modules.filter((m) => m.status === '已完成').length;
 
       const stageChip = view.stage
@@ -140,6 +163,17 @@ window.__ModuleLoader__.load({
       const moduleChip = modules.length > 0
         ? h(Chip, { state: 'idle', title: t('chip.modules') }, `${t('chip.modules')} ${doneModules}/${modules.length}`)
         : null;
+      // V2: the one fact the user must never be misled about — whether D can
+      // actually see what it built. Text-only models are blind by default.
+      const blind = capabilityDetail?.visual?.available === false;
+      const visionChip = blind ? h(Chip, { state: 'blocked', title: t('chip.blind.title') }, t('chip.blind')) : null;
+      // V6: hard gates are the one thing the bar must never hide. A run that
+      // "finished" with them open is the failure this product exists to stop, so
+      // the count sits next to the stage instead of inside the expanded body.
+      const hardGates = Number.isFinite(view.hardGates) ? view.hardGates : 0;
+      const gateChip = hardGates > 0
+        ? h(Chip, { state: 'blocked', title: t('chip.gates.title') }, `${t('chip.gates')} ${hardGates}`)
+        : null;
       const headline = view.progress || view.stageNote || '';
 
       const bar = h('div', { className: 'dcBar' },
@@ -147,6 +181,8 @@ window.__ModuleLoader__.load({
         h('span', { className: 'dcTitle' }, t('bar.title')),
         stageChip,
         moduleChip,
+        gateChip,
+        visionChip,
         h('span', { className: 'dcLine', title: headline }, headline),
         h('button', {
           type: 'button', className: 'dcToggle',
@@ -192,11 +228,37 @@ window.__ModuleLoader__.load({
         h(Section, {
           title: t('section.basis'),
           empty: t('empty.basis'),
-          rows: [['definition', 'basis.definition'], ['motivation', 'basis.motivation'], ['meaning', 'basis.meaning'], ['structure', 'basis.structure'], ['time_logic', 'basis.time']]
+          rows: [
+            ['definition', 'basis.definition'], ['motivation', 'basis.motivation'],
+            ['meaning', 'basis.meaning'], ['structure', 'basis.structure'],
+            ['time_logic', 'basis.time'], ['feeling', 'basis.feeling'],
+          ]
             .filter(([field]) => basis[field])
             .map(([field, key]) => h('div', { key: field, className: 'dcText' },
               h('span', { className: 'dcMono' }, t(key)), ' ',
               h('span', null, basis[field]))),
+        }),
+        h(Section, {
+          title: t('section.pitches'),
+          empty: t('empty.pitches'),
+          rows: pitches.map((item, index) => h('div', {
+            key: `pitch-${index}`, className: 'dcText',
+            // V5: a pitch with no name is not a pitch. The judgement is
+            // granularity — if it does not read as *which game*, it is not one.
+            'data-unsourced': item.name && item.pitch ? 'false' : 'true',
+          },
+          h('span', { className: 'dcMono' }, item.name || t('pitches.unnamed')), ' ',
+          h('span', null, item.pitch || ''))),
+        }),
+        h(Section, {
+          title: '游戏方案批准状态',
+          empty: '尚未展示游戏方案',
+          rows: gameApproval.status || gameApproval.proposal_name
+            ? [h('div', { className: 'dcText' },
+              h('span', { className: 'dcMono' }, gameApproval.status || ''), ' ',
+              h('span', null, gameApproval.proposal_name || '未记录具体方案'),
+              gameApproval.user_evidence ? h('div', { className: 'dcMono' }, gameApproval.user_evidence) : null)]
+            : [],
         }),
         h(Section, {
           title: t('section.experience'),
@@ -209,14 +271,14 @@ window.__ModuleLoader__.load({
         }),
         h(Section, {
           title: '游戏核心循环试玩证据',
-          empty: '尚无真实游戏试玩证据',
-          rows: Object.entries(view.gameplayReview || {}).filter(([, value]) => value).map(([key, value]) => h('div', { key, className: 'dcText' },
+          empty: '尚无真实玩家路径试玩证据',
+          rows: Object.entries(gameplayReview).filter(([, value]) => value).map(([key, value]) => h('div', { key, className: 'dcText' },
             h('span', { className: 'dcMono' }, key), ' ', h('span', null, value))),
         }),
         h(Section, {
-          title: '游戏视觉与 UI 审查',
-          empty: '尚无实机截图与视觉/UI返修证据',
-          rows: Object.entries(view.visualReview || {}).filter(([, value]) => value).map(([key, value]) => h('div', { key, className: 'dcText' },
+          title: '游戏视觉与 UI 实机复测',
+          empty: '尚无实机截图与改后复测证据',
+          rows: Object.entries(visualReview).filter(([, value]) => value).map(([key, value]) => h('div', { key, className: 'dcText' },
             h('span', { className: 'dcMono' }, key), ' ', h('span', null, value))),
         }),
         h(Section, {
@@ -236,7 +298,150 @@ window.__ModuleLoader__.load({
           },
           h('span', { className: 'dcMono' }, `${item.area || ''}${item.level ? `[${item.level}]` : ''}`),
           item.source ? h('span', { className: 'dcMono' }, ` ${item.source}`) : null, ' ',
-          h('span', null, item.form || ''))),
+          h('span', null, item.form || ''),
+          item.origin || item.licence || item.artWeight
+            ? h('span', { className: 'dcStageSummary' },
+              ` — ${[item.origin, item.licence, item.artWeight ? `权重${item.artWeight}` : null].filter(Boolean).join(' / ')}`)
+            : null,
+          item.material ? h('div', { className: 'dcMono' }, item.material) : null)),
+        }),
+        h(Section, {
+          title: t('section.assets'),
+          empty: t('empty.assets'),
+          rows: [
+            ['imageApi', 'assets.imageApi', assets.imageApi],
+            ['budgetNote', 'assets.budget', assets.budgetNote],
+            ['licenceNote', 'assets.licence', assets.licenceNote],
+          ].filter(([, , value]) => value).map(([field, key, value]) => h('div', { key: field, className: 'dcText' },
+            h('span', { className: 'dcMono' }, t(key)), ' ',
+            h('span', null, value))),
+        }),
+        h(Section, {
+          title: t('section.platform'),
+          empty: t('empty.platform'),
+          rows: platform.choice || platform.kind || platformAlternatives.length > 0
+            ? [h('div', {
+              className: 'dcText',
+              'data-unsourced': platform.kind === '无框架自研' && platformAlternatives.length < 2 ? 'true' : 'false',
+            },
+            h('span', { className: 'dcMono' }, platform.choice || ''),
+            platform.kind ? h('span', { className: 'dcMono' }, ` ${platform.kind}`) : null,
+            platform.licence || platform.cost
+              ? h('span', { className: 'dcStageSummary' },
+                ` — ${[platform.licence, platform.cost].filter(Boolean).join(' / ')}`)
+              : null,
+            // V5: a host-game mod's loadability rests on this triple. Missing any
+            // part of it means the jar may not load anywhere, so flag it red — and
+            // say which parts are actually missing, rather than only warning when
+            // all three are absent.
+            platform.kind === '宿主游戏 mod'
+              ? (() => {
+                const parts = [
+                  [platform.hostGame, 'host_game'],
+                  [platform.hostVersion, 'host_version'],
+                  [platform.hostLoader, 'host_loader'],
+                ];
+                const present = parts.filter(([value]) => value).map(([value]) => value);
+                const missing = parts.filter(([value]) => !value).map(([, name]) => name);
+                return h('div', {
+                  className: 'dcText',
+                  'data-unsourced': missing.length > 0 ? 'true' : 'false',
+                },
+                h('span', { className: 'dcMono' }, t('platform.host')),
+                present.length > 0 ? ` ${present.join(' + ')}` : '',
+                missing.length > 0
+                  ? h('span', { className: 'dcStageSummary' },
+                    ` ${t('platform.hostMissing')}：${missing.join(' / ')}`)
+                  : null);
+              })()
+              : null,
+            platform.exportTargets ? h('div', { className: 'dcMono' }, `${t('platform.export')} ${platform.exportTargets}`) : null,
+            platform.note ? h('div', { className: 'dcMono' }, platform.note) : null,
+            ...platformAlternatives.map((item, index) => h('div', {
+              key: `plat-alt-${index}`, className: 'dcText',
+            },
+            h('span', { className: 'dcMono' }, `✗ ${item.name || ''}`), ' ',
+            h('span', null, item.whyNot || ''))))] : [],
+        }),
+        h(Section, {
+          title: t('section.art'),
+          empty: t('empty.art'),
+          rows: artReferences.length || artPalette.length || artRounds.length || art.light || art.texture
+            ? [
+              // The whole point of V4: art built against references, with the loop
+              // counted. When either is missing the row is flagged red.
+              h('div', {
+                className: 'dcText',
+                'data-unsourced': artReferences.length < 2 || artRounds.length < 3 ? 'true' : 'false',
+              },
+              h('span', { className: 'dcMono' }, `${t('art.refs')} ${artReferences.length}`),
+              h('span', { className: 'dcMono' }, ` / ${t('art.palette')} ${artPalette.length}`),
+              h('span', { className: 'dcMono' }, ` / ${t('art.rounds')} ${artRounds.length}`),
+              art.layers ? h('span', { className: 'dcStageSummary' }, ` — ${t('art.layers')} ${art.layers}`) : null),
+              ...artReferences.map((item, index) => h('div', {
+                key: `art-ref-${index}`, className: 'dcText',
+                'data-unsourced': item.whatToSteal ? 'false' : 'true',
+              },
+              h('span', { className: 'dcMono' }, `◇ ${item.name || ''}`), ' ',
+              h('span', null, item.whatToSteal || t('art.noSteal')))),
+              ...artPalette.map((item, index) => h('div', {
+                key: `art-pal-${index}`, className: 'dcText',
+              },
+              h('span', { className: 'dcMono' }, item.hex || ''), ' ',
+              h('span', null, item.role || ''))),
+              art.light ? h('div', { className: 'dcText' }, h('span', { className: 'dcMono' }, t('art.light')), ' ', h('span', null, art.light)) : null,
+              art.texture ? h('div', { className: 'dcText' }, h('span', { className: 'dcMono' }, t('art.texture')), ' ', h('span', null, art.texture)) : null,
+              art.ui ? h('div', { className: 'dcText' }, h('span', { className: 'dcMono' }, t('art.ui')), ' ', h('span', null, art.ui)) : null,
+              ...artRounds.map((item, index) => h('div', {
+                key: `art-round-${index}`, className: 'dcText',
+                'data-unsourced': item.changed ? 'false' : 'true',
+              },
+              h('span', { className: 'dcMono' }, `#${item.round || ''}`), ' ',
+              h('span', null, item.gaps || ''), ' ',
+              h('span', { className: 'dcStageSummary' }, item.changed ? `→ ${item.changed}` : t('art.noChange')))),
+            ] : [],
+        }),
+        h(Section, {
+          title: t('section.kickoff'),
+          empty: t('empty.kickoff'),
+          rows: kickoff.status || kickoff.path ? [h('div', {
+            className: 'dcText',
+            'data-unsourced': kickoff.blockingCount && kickoff.blockingCount !== '0' ? 'true' : 'false',
+          },
+          h('span', { className: 'dcMono' }, kickoff.status || ''),
+          kickoff.questionCount ? h('span', { className: 'dcMono' }, ` ${t('kickoff.questions')} ${kickoff.questionCount}`) : null,
+          kickoff.blockingCount !== null && kickoff.blockingCount !== undefined
+            ? h('span', { className: 'dcMono' }, ` ${t('kickoff.blocking')} ${kickoff.blockingCount}`) : null,
+          kickoff.path ? h('div', { className: 'dcMono' }, kickoff.path) : null)] : [],
+        }),
+        h(Section, {
+          title: t('section.reviewers'),
+          empty: t('empty.reviewers'),
+          rows: reviewers.map((item, index) => h('div', {
+            key: `rv-${index}`, className: 'dcText',
+            'data-unsourced': item.status === '通过' && item.isolation !== '独立子代理' ? 'true' : 'false',
+          },
+          h('span', { className: 'dcMono' }, item.officer || ''),
+          h('span', { className: 'dcStageName', 'data-state': stateOf(item.status) }, item.status || ''),
+          item.isolation ? h('span', { className: 'dcMono' }, ` ${item.isolation}`) : null,
+          item.verdict ? h('div', null, item.verdict) : null,
+          item.overturned ? h('div', { className: 'dcMono' }, item.overturned) : null)),
+        }),
+        h(Section, {
+          title: t('section.autoAdvanced'),
+          empty: t('empty.autoAdvanced'),
+          rows: autoAdvanced.map((item, index) => h('div', { key: `aa-${index}`, className: 'dcText' },
+            h('span', { className: 'dcMono' }, item.item || ''), ' ',
+            h('span', null, item.defaultUsed || ''),
+            item.reason ? h('span', { className: 'dcStageSummary' }, ` — ${item.reason}`) : null)),
+        }),
+        h(Section, {
+          title: t('section.capabilities'),
+          empty: t('empty.capabilities'),
+          rows: capabilitiesLine ? [h('div', {
+            className: 'dcText',
+            'data-unsourced': capabilityDetail?.visual?.available === false ? 'true' : 'false',
+          }, h('span', null, capabilitiesLine))] : [],
         }),
         h(Section, {
           title: t('section.modules'),
@@ -319,6 +524,13 @@ window.__ModuleLoader__.load({
               requirements.intake?.autonomy === '已授权'
                 ? t('intake.granted')
                 : (requirements.intake?.status === '已发出' ? t('intake.waiting') : t('intake.idle'))),
+            h('div', {
+              className: 'dcMono',
+              'data-consent': requirements.consent?.status === '已确认' ? 'granted' : 'locked',
+            },
+            requirements.consent?.status === '已确认'
+              ? `${t('consent.granted')}${requirements.consent.basis ? `（${requirements.consent.basis}）` : ''}`
+              : t('consent.locked')),
             (requirements.unknown || []).map((item, index) => h('div', { key: `u-${index}`, className: 'dcStageSummary' }, `？${item}`)),
             (requirements.assumptions || []).map((item, index) => h('div', { key: `as-${index}`, className: 'dcStageSummary' }, `～${item}`))),
         }),
@@ -361,6 +573,11 @@ window.__ModuleLoader__.load({
       'section.experience': '体验契约',
       'section.benchmarks': '品类与领域对标',
       'section.gaps': '交付面清单',
+      'section.assets': '素材策略',
+      'section.kickoff': '开工文档',
+      'section.reviewers': '体验官审阅',
+      'section.autoAdvanced': '自动推进留痕',
+      'section.capabilities': '能力自检',
       'section.modules': '模块',
       'section.plan': '施工计划',
       'section.changes': '变更项',
@@ -385,6 +602,15 @@ window.__ModuleLoader__.load({
       'basis.meaning': '用户意义',
       'basis.structure': '结构分解',
       'basis.time': '时间逻辑',
+      'assets.imageApi': '图像API',
+      'assets.budget': '预算',
+      'assets.licence': '许可',
+      'kickoff.questions': '问题数',
+      'kickoff.blocking': '阻塞项',
+      'chip.blind': '无视觉能力',
+      'chip.blind.title': '本会话没有挂载视觉工具（通常是输入框的「👁 识图」没开）。D 看不到自己做的画面，因此不得声称看过画面。',
+      'chip.gates': '硬门',
+      'chip.gates.title': '硬门未清：这些缺陷不是提示，宿主会拒绝把它记成「完成 / 验收」。先清掉它们，别急着交付。',
       'exp.first10': '前10秒',
       'exp.first60': '前60秒',
       'exp.first5': '前5分钟',
@@ -394,14 +620,41 @@ window.__ModuleLoader__.load({
       'intake.granted': '自主推进：已授权（一次问全已回答）',
       'intake.waiting': '等你一次答全（尚未获得自主授权）',
       'intake.idle': '尚未发起一次问全',
+      'consent.locked': '施工锁：未确认授权（引擎会拒绝写入与施工工具）',
+      'consent.granted': '施工授权：已确认',
       'requirements.unknown': '待明确',
       'requirements.assumptions': '推断',
       'requirements.deferred': '延期',
       'empty.stages': '尚未登记阶段',
-      'empty.basis': '尚未写零到一前置设计包（定义 / 动机与取向 / 用户意义 / 结构分解 / 时间逻辑）',
+      'empty.basis': '尚未写零到一前置设计包（定义 / 动机与取向 / 用户意义 / 结构分解 / 时间逻辑 / 感觉→画面）',
+      'section.pitches': '具体方案',
+      'empty.pitches': '尚未给出可命名的具体方案（用户说"你多想几个"时要的就是这个，不是问卷）',
+      'pitches.unnamed': '（没有可命名的方案：读不出"这是哪款游戏"）',
+      'basis.feeling': '感觉→画面：',
       'empty.experience': '尚未写出体验契约（面向人的交付必须先写出动作级剧本）',
       'empty.benchmarks': '尚未做品类与领域对标（技术层研究不能替代）',
       'empty.gaps': '尚未列出交付面清单（玩法/数值/美术/音频/内容/领域每个板块都要有归属）',
+      'empty.assets': '尚未定素材策略（图像API / 预算 / 许可纪律）',
+      'section.platform': '承载平台',
+      'section.art': '美术达标',
+      'empty.art': '尚未定美术方向（参考图 / 色板 / 迭代轮次）',
+      'art.refs': '参考',
+      'art.palette': '色板',
+      'art.rounds': '迭代',
+      'art.layers': '纵深',
+      'art.light': '光照：',
+      'art.texture': '材质：',
+      'art.ui': 'UI：',
+      'art.noSteal': '（没写要从它身上抄什么）',
+      'art.noChange': '（只看了没改）',
+      'empty.platform': '尚未定承载平台（引擎/框架，以及否掉过哪些）',
+      'platform.export': '导出：',
+      'platform.host': '宿主：',
+      'platform.hostMissing': '⚠ 缺（jar 可能装不上）',
+      'empty.kickoff': '尚未发出开工文档（前期一次问全的落地形态）',
+      'empty.reviewers': '尚未经体验官审阅（交付前必须由独立子代理跑一遍）',
+      'empty.autoAdvanced': '无自动推进记录',
+      'empty.capabilities': '尚未做能力自检（d_state 每次调用都会返回）',
       'empty.modules': '尚未登记模块',
       'empty.plan': '尚未登记计划',
       'empty.changes': '尚无变更项',
@@ -427,6 +680,11 @@ window.__ModuleLoader__.load({
       'section.experience': 'Experience contract',
       'section.benchmarks': 'Category & domain benchmarks',
       'section.gaps': 'Delivery surfaces',
+      'section.assets': 'Asset strategy',
+      'section.kickoff': 'Kickoff dossier',
+      'section.reviewers': 'Experience review',
+      'section.autoAdvanced': 'Auto-advanced on timeout',
+      'section.capabilities': 'Capability self-check',
       'section.modules': 'Modules',
       'section.plan': 'Plan',
       'section.changes': 'Change items',
@@ -451,6 +709,13 @@ window.__ModuleLoader__.load({
       'basis.meaning': 'meaning',
       'basis.structure': 'structure',
       'basis.time': 'time logic',
+      'assets.imageApi': 'image API',
+      'assets.budget': 'budget',
+      'assets.licence': 'licence',
+      'kickoff.questions': 'questions',
+      'kickoff.blocking': 'blocking',
+      'chip.blind': 'no vision',
+      'chip.blind.title': 'No vision tools are mounted in this session (usually the composer\'s 「👁 识图」 toggle is off). D cannot see what it built, so it must not claim it looked at anything.',
       'exp.first10': 'first 10s',
       'exp.first60': 'first 60s',
       'exp.first5': 'first 5min',
@@ -460,14 +725,41 @@ window.__ModuleLoader__.load({
       'intake.granted': 'Autonomy granted (one-shot intake answered)',
       'intake.waiting': 'Waiting for your one-shot answers (no autonomy yet)',
       'intake.idle': 'No one-shot intake yet',
+      'consent.locked': 'Build lock: consent not confirmed (writes and construction tools are refused)',
+      'consent.granted': 'Build consent: confirmed',
       'requirements.unknown': 'Unknown',
       'requirements.assumptions': 'Assumed',
       'requirements.deferred': 'Deferred',
       'empty.stages': 'No stage recorded yet',
-      'empty.basis': 'No zero-to-one design basis yet (definition / motivation / meaning / structure / time logic)',
+      'empty.basis': 'No zero-to-one design basis yet (definition / motivation / meaning / structure / time logic / feeling→picture)',
+      'section.pitches': 'Named pitches',
+      'empty.pitches': 'No nameable pitches yet (this is what "give me a few ideas" asks for — not a questionnaire)',
+      'pitches.unnamed': '(nothing nameable: cannot read which game this is)',
+      'basis.feeling': 'Feeling → picture:',
       'empty.experience': 'No experience contract yet (human-facing delivery needs the action-level script first)',
       'empty.benchmarks': 'No category/domain benchmark yet (technical research does not replace it)',
       'empty.gaps': 'No delivery-surface list yet (gameplay, numbers, art, audio, content, domain — every board needs an owner)',
+      'empty.assets': 'No asset strategy yet (image API / budget / licence discipline)',
+      'section.platform': 'Carrying platform',
+      'section.art': 'Art bar',
+      'empty.art': 'No art direction yet (references / palette / view rounds)',
+      'art.refs': 'refs',
+      'art.palette': 'palette',
+      'art.rounds': 'rounds',
+      'art.layers': 'depth',
+      'art.light': 'Light: ',
+      'art.texture': 'Texture: ',
+      'art.ui': 'UI: ',
+      'art.noSteal': '(nothing said to steal from it)',
+      'art.noChange': '(looked but changed nothing)',
+      'empty.platform': 'No platform decision yet (engine/framework, and what was rejected)',
+      'platform.export': 'Exports:',
+      'platform.host': 'Host:',
+      'platform.hostMissing': '⚠ missing (the jar may not load)',
+      'empty.kickoff': 'No kickoff dossier yet (the one-shot up-front interview)',
+      'empty.reviewers': 'Not reviewed yet (an isolated subagent must run it before handover)',
+      'empty.autoAdvanced': 'No auto-advanced decisions',
+      'empty.capabilities': 'No capability self-check yet (every d_state call returns one)',
       'empty.modules': 'No module recorded yet',
       'empty.plan': 'No plan recorded yet',
       'empty.changes': 'No change item yet',

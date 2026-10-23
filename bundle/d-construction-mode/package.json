@@ -3,7 +3,7 @@
   "version": "1.0.0",
   "private": true,
   "type": "module",
-  "description": "D｜深度施工模式：独立的深度施工 Agent 预设（角色与规则、结构化施工状态、全链 Pipeline View、六个施工技能）。",
+  "description": "D｜深度施工模式：独立的深度施工 Agent 预设（十八条核心原则、开工文档、素材与取材策略、承载平台选型、美术达标、体验官审阅层、结构化施工状态、全链 Pipeline View、十六个技能）。",
   "icon": "./icon.svg",
   "exports": {
     ".": "./index.js",
