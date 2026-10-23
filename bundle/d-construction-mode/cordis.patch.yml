@@ -162,69 +162,69 @@
                   model: deepseek-v4.1-flash
                   maxTokens: 32768
 
-     - id: preset-d-construction-research
-       name: '@deepseek-ai/dsh-agent-preset'
-       config:
-         id: d-construction-research
-         name: 落地流·研究只读
-         description: 只做资料和文件读取，不修改正式项目，不调用子代理。
-         order: 11
-         plugins:
-           - id: persona
-             name: '@deepseek-ai/dsh-persona'
-             config:
-               prefix: 你是落地流的研究子代理，只读研究与证据整理。
-           - id: agent-instructions
-             name: '@deepseek-ai/dsh-agent-instructions'
-             config:
-               maxBytes: 32768
-           - id: tool-fs
-             name: '@deepseek-ai/dsh-tool-fs'
-           - id: tool-fs-search
-             name: '@deepseek-ai/dsh-tool-fs-search'
-           - id: tool-web
-             name: '@deepseek-ai/dsh-tool-web'
-             config:
-               fetch: true
+    - id: preset-d-construction-research
+      name: '@deepseek-ai/dsh-agent-preset'
+      config:
+        id: d-construction-research
+        name: 落地流·研究只读
+        description: 只做资料和文件读取，不修改正式项目，不调用子代理。
+        order: 11
+        plugins:
+          - id: persona
+            name: '@deepseek-ai/dsh-persona'
+            config:
+              prefix: 你是落地流的研究子代理，只读研究与证据整理。
+          - id: agent-instructions
+            name: '@deepseek-ai/dsh-agent-instructions'
+            config:
+              maxBytes: 32768
+          - id: tool-fs
+            name: '@deepseek-ai/dsh-tool-fs'
+          - id: tool-fs-search
+            name: '@deepseek-ai/dsh-tool-fs-search'
+          - id: tool-web
+            name: '@deepseek-ai/dsh-tool-web'
+            config:
+              fetch: true
 
-     - id: preset-d-construction-analysis
-       name: '@deepseek-ai/dsh-agent-preset'
-       config:
-         id: d-construction-analysis
-         name: 落地流·代码分析
-         description: 只读分析代码和测试，不修改正式项目，不调用子代理。
-         order: 12
-         plugins:
-           - id: persona
-             name: '@deepseek-ai/dsh-persona'
-             config:
-               prefix: 你是落地流的代码分析子代理，只读分析和证据整理。
-           - id: agent-instructions
-             name: '@deepseek-ai/dsh-agent-instructions'
-             config:
-               maxBytes: 32768
-           - id: tool-fs
-             name: '@deepseek-ai/dsh-tool-fs'
-           - id: tool-fs-search
-             name: '@deepseek-ai/dsh-tool-fs-search'
+    - id: preset-d-construction-analysis
+      name: '@deepseek-ai/dsh-agent-preset'
+      config:
+        id: d-construction-analysis
+        name: 落地流·代码分析
+        description: 只读分析代码和测试，不修改正式项目，不调用子代理。
+        order: 12
+        plugins:
+          - id: persona
+            name: '@deepseek-ai/dsh-persona'
+            config:
+              prefix: 你是落地流的代码分析子代理，只读分析和证据整理。
+          - id: agent-instructions
+            name: '@deepseek-ai/dsh-agent-instructions'
+            config:
+              maxBytes: 32768
+          - id: tool-fs
+            name: '@deepseek-ai/dsh-tool-fs'
+          - id: tool-fs-search
+            name: '@deepseek-ai/dsh-tool-fs-search'
 
-     - id: preset-d-construction-review
-       name: '@deepseek-ai/dsh-agent-preset'
-       config:
-         id: d-construction-review
-         name: 落地流·审查只读
-         description: 只读审查实现和测试证据，不修改正式项目，不调用子代理。
-         order: 13
-         plugins:
-           - id: persona
-             name: '@deepseek-ai/dsh-persona'
-             config:
-               prefix: 你是落地流的审查子代理，只读检查实现和验证证据。
-           - id: agent-instructions
-             name: '@deepseek-ai/dsh-agent-instructions'
-             config:
-               maxBytes: 32768
-           - id: tool-fs
-             name: '@deepseek-ai/dsh-tool-fs'
-           - id: tool-fs-search
-             name: '@deepseek-ai/dsh-tool-fs-search'
+    - id: preset-d-construction-review
+      name: '@deepseek-ai/dsh-agent-preset'
+      config:
+        id: d-construction-review
+        name: 落地流·审查只读
+        description: 只读审查实现和验证证据，不修改正式项目，不调用子代理。
+        order: 13
+        plugins:
+          - id: persona
+            name: '@deepseek-ai/dsh-persona'
+            config:
+              prefix: 你是落地流的审查子代理，只读检查实现和验证证据。
+          - id: agent-instructions
+            name: '@deepseek-ai/dsh-agent-instructions'
+            config:
+              maxBytes: 32768
+          - id: tool-fs
+            name: '@deepseek-ai/dsh-tool-fs'
+          - id: tool-fs-search
+            name: '@deepseek-ai/dsh-tool-fs-search'
